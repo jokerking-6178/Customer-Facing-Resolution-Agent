@@ -13,7 +13,7 @@ and why.
 
 ## Live demo
 
-**→ `https://customer-facing-resolution-agent.onrender.com/`** *(replace with your URL after deploying)*
+**→ https://customer-facing-resolution-agent.onrender.com/** 
 
 > **Two things to know before you click.**
 > **(1)** This runs on Render's free tier, which sleeps after 15 minutes of inactivity — the
