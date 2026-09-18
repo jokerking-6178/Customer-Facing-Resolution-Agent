@@ -110,12 +110,18 @@ def _drop_already_issued(verdicts: list[dict], ledger, session_id: str) -> list[
             out.append(v)
         else:
             # Everything in this verdict was already granted earlier in the
-            # session. Keep the decision visible, but grant nothing again.
+            # session. Grant nothing again -- but keep the original reason, so
+            # the customer still hears WHAT they are entitled to rather than a
+            # bare "nothing further is due".
+            already = ", ".join(
+                a["type"].replace("_", " ") for a in v["actions"]
+            )
             out.append({
                 **v,
                 "status": "decline",
                 "actions": [],
-                "reason": "Already applied to this booking earlier in this "
-                          "conversation; nothing further is due.",
+                "reason": "{} This was already applied to the booking earlier in "
+                          "this conversation ({}), so it is not issued again."
+                          .format(v.get("reason", "").rstrip(), already),
             })
     return out

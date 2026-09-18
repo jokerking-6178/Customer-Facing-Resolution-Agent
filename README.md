@@ -31,6 +31,22 @@ LLM_PROVIDER=ollama python -m uvicorn backend.main:app --port 8000  # local Olla
 LLM_PROVIDER=groq   GROQ_API_KEY=gsk_... python -m uvicorn backend.main:app --port 8000
 ```
 
+### Configure the engine with `.env`
+
+Copy `.env.example` to `.env` and set your provider. The app loads it
+automatically at startup (`backend/config.py`); a shell environment variable
+still overrides the file.
+
+```ini
+LLM_PROVIDER=groq
+GROQ_API_KEY=gsk_...
+```
+
+> **Groq retires hosted models.** `llama-3.3-70b-versatile` was decommissioned
+> and now returns 404. The default is `openai/gpt-oss-120b`. If you hit a 404,
+> list what your key can actually reach with `python -m backend.llm.provider`
+> and set `LLM_MODEL` accordingly.
+
 Open <http://localhost:8000>. Or use the one-command script:
 
 ```bash

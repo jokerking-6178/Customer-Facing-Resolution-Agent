@@ -17,6 +17,7 @@
   --amber-dim: rgba(192, 122, 31, 0.14);
   --blue: #35618f;
   --blue-dim: rgba(53, 97, 143, 0.12);
+  --clarified: #5a6b80;
   --font: "Source Sans 3", system-ui, -apple-system, sans-serif;
   --mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
 }
@@ -41,6 +42,7 @@
     --amber-dim: rgba(223, 160, 74, 0.16);
     --blue: #8fb3dd;
     --blue-dim: rgba(143, 179, 221, 0.14);
+    --clarified: #9aabc0;
   }
 }
 
@@ -54,9 +56,9 @@ body {
 }
 
 .app {
-  max-width: 1180px;
+  max-width: 1500px;
   margin: 0 auto;
-  padding: 28px 24px 60px;
+  padding: 20px 24px 28px;
 }
 
 /* ---------- top bar ---------- */
@@ -188,12 +190,15 @@ body {
 /* ---------- layout ---------- */
 .layout {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 16px;
   align-items: start;
 }
-@media (max-width: 900px) {
-  .layout { grid-template-columns: 1fr; }
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: minmax(0, 1fr) 280px; }
+}
+@media (max-width: 820px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ---------- chat ---------- */
@@ -203,16 +208,18 @@ body {
   border-radius: 12px;
   display: flex;
   flex-direction: column;
-  min-height: 480px;
+  min-height: 420px;
+  max-height: calc(100vh - 230px);
 }
 .chat__scroll {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
-  max-height: 520px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  scroll-behavior: smooth;
 }
 .chat__empty {
   margin: auto;
@@ -279,6 +286,9 @@ body {
   padding: 18px;
   position: sticky;
   top: 16px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 230px);
 }
 .record__title {
   font-size: 15px;
@@ -301,7 +311,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 460px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 .record__item {
@@ -348,8 +359,11 @@ body {
 .a-escalated .record__status { background: var(--red-dim); color: var(--red); }
 
 /* clarifying questions: recorded, but nothing was granted */
-.a-clarified { --accent: #6b7a8f; }
-.record__status.a-clarified { background: rgba(107, 122, 143, 0.14); color: #4a5a6f; }
+.record__item.a-clarified { border-left-color: var(--clarified); }
+.record__status.a-clarified {
+  background: color-mix(in srgb, var(--clarified) 18%, transparent);
+  color: var(--clarified);
+}
 
 /* structured escalation ticket */
 .record__ticket {
@@ -357,7 +371,10 @@ body {
   margin: 0 0 10px;
   padding: 6px 10px;
   border-radius: 6px;
-  background: rgba(179, 64, 46, 0.09);
-  color: #8c3423;
+  background: color-mix(in srgb, var(--red) 14%, transparent);
+  color: var(--red);
 }
-.record__ticket--normal { background: rgba(30, 58, 95, 0.08); color: #24466f; }
+.record__ticket--normal {
+  background: color-mix(in srgb, var(--navy) 14%, transparent);
+  color: var(--navy);
+}

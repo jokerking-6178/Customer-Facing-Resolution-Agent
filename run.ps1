@@ -1,14 +1,18 @@
 # SkyAssist - one-command local run (Windows PowerShell).
 # Mirrors run.sh. Usage:  .\run.ps1
 #
-#   $env:LLM_PROVIDER = "mock"    # no LLM needed, deterministic (default here)
+# The provider comes from .env (LLM_PROVIDER / GROQ_API_KEY). Override for
+# one run by setting it in this shell first:
+#   $env:LLM_PROVIDER = "mock"    # no LLM needed, deterministic
 #   $env:LLM_PROVIDER = "ollama"  # local llama3.1:8b via Ollama
 #   $env:LLM_PROVIDER = "groq"    # hosted; also set $env:GROQ_API_KEY
 
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
 
-if (-not $env:LLM_PROVIDER) { $env:LLM_PROVIDER = "mock" }
+# Do NOT default the provider here: a value set in this shell overrides
+# .env, which would silently ignore a GROQ_API_KEY the user put there.
+# backend/config.py loads .env; backend/llm/provider.py falls back to ollama.
 
 # --- Python environment -------------------------------------------------------
 if (-not (Test-Path ".venv")) {
@@ -37,6 +41,7 @@ if (-not (Test-Path "frontend\dist\index.html")) {
 
 # --- Run ----------------------------------------------------------------------
 Write-Host ""
-Write-Host "SkyAssist running on http://localhost:8000  (engine: $env:LLM_PROVIDER)" -ForegroundColor Green
+$engine = if ($env:LLM_PROVIDER) { $env:LLM_PROVIDER } else { "from .env" }
+Write-Host "SkyAssist running on http://localhost:8000  (engine: $engine)" -ForegroundColor Green
 Write-Host ""
 & $py -m uvicorn backend.main:app --host 0.0.0.0 --port 8000

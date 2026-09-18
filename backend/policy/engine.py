@@ -205,33 +205,45 @@ def evaluate_request(req: dict[str, Any], ctx: dict[str, Any]) -> Verdict:
         # escalation ticket record that it was never independently verified.
         fare_src = req.get("fare_difference_source", "customer_stated")
 
-        if not airline_caused:
+        # A waiver was asked for but no amount could be established. Never
+        # guess it, and never quietly rebook onto a different flight instead.
+        if waiver_requested and fare_difference <= 0 and target != "next_available":
+            return _verdict("rebook", "escalate", rule="fare_difference",
+                            reason="A fare-difference waiver was requested but no "
+                                   "amount could be established; a human agent must "
+                                   "confirm the fare difference.",
+                            payload={"fare_difference_source": fare_src})
+
+        # Free rebooking on the NEXT AVAILABLE flight: airline-caused only.
+        if target == "next_available" or fare_difference <= 0:
+            if airline_caused:
+                return _verdict("rebook", "execute", rule="cancellation_rebooking",
+                                reason="Free rebooking on the next available flight "
+                                       "within 24 hours."
+                                + (" Priority rebooking applies ("
+                                   + str(tier) + " tier)." if priority else ""),
+                                actions=[{"type": "rebook_next_available",
+                                          "priority": priority}])
             if req.get("insisting"):
                 return _verdict("rebook", "escalate", rule="prohibited_exception",
                                 reason="Exception requested for a non-airline-caused "
                                        "disruption; needs a human agent.")
             return _verdict("rebook", "decline", rule="fare_difference",
                             reason="Free rebooking applies to airline-caused "
-                                   "disruptions only; a voluntary change to a "
-                                   "higher-fare flight is payable by the customer.")
+                                   "disruptions only; a voluntary change is payable "
+                                   "by the customer.")
 
-        if target == "next_available":
-            return _verdict("rebook", "execute", rule="cancellation_rebooking",
-                            reason="Free rebooking on the next available flight within "
-                                   "24 hours."
-                            + (" Priority rebooking applies ("
-                               + str(tier) + " tier)." if priority else ""),
-                            actions=[{"type": "rebook_next_available",
-                                      "priority": priority}])
-
-        # Customer chose a specific higher-fare flight instead of the next available.
-        if waiver_requested:
-            if fare_difference <= 0:
-                return _verdict("rebook", "escalate", rule="fare_difference",
-                                reason="A fare-difference waiver was requested but no "
-                                       "amount could be established; a human agent must "
-                                       "confirm the fare difference.",
-                                payload={"fare_difference_source": fare_src})
+        # The customer wants a SPECIFIC higher-fare flight.
+        #
+        # Who is expected to absorb the difference is NOT a judgement we leave
+        # to the language model. When the airline caused the disruption, asking
+        # to be moved to another flight is implicitly asking us to absorb the
+        # difference -- the same question an explicit waiver request asks. Both
+        # therefore run through the agent's waiver authority, so Scenario 3
+        # escalates on the amount alone rather than on how the request was
+        # phrased.
+        seeks_waiver = waiver_requested or airline_caused
+        if seeks_waiver:
             if fare_difference <= FARE_WAIVER_LIMIT:
                 return _verdict("rebook", "execute", rule="fare_difference",
                                 reason="Fare difference of Rs {:,} waived (within the "
@@ -244,8 +256,12 @@ def evaluate_request(req: dict[str, Any], ctx: dict[str, Any]) -> Verdict:
             return _verdict("rebook", "escalate", rule="fare_difference",
                             reason="Waiving a fare difference of Rs {:,} exceeds the "
                                    "agent's Rs {:,} limit; supervisor approval is "
-                                   "required.".format(fare_difference, FARE_WAIVER_LIMIT),
+                                   "required. Free rebooking on the next available "
+                                   "flight within 24 hours remains available at no "
+                                   "charge.".format(fare_difference, FARE_WAIVER_LIMIT),
                             payload={"fare_difference_source": fare_src})
+
+        # Voluntary change, not airline-caused: the customer pays the difference.
         return _verdict("rebook", "execute", rule="fare_difference",
                         reason="Rebooking confirmed; the fare difference of Rs {:,} is "
                                "payable by the customer.".format(fare_difference),
@@ -280,9 +296,19 @@ def evaluate_request(req: dict[str, Any], ctx: dict[str, Any]) -> Verdict:
                 return _verdict("hotel", "escalate", rule="prohibited_compensation",
                                 reason="Hotel accommodation requested beyond the "
                                        "policy threshold; needs a human agent.")
-            return _verdict("hotel", "decline", rule="delay_compensation",
-                            reason="Hotel accommodation applies only when a delay "
-                                   "exceeds {} hours.".format(DELAY_HOTEL_HOURS))
+            # Be specific about WHY. Telling a customer whose flight was
+            # CANCELLED that "hotels need a delay over 5 hours" is technically
+            # true and completely unhelpful.
+            if not airline_caused:
+                why = ("Hotel accommodation applies to airline-caused delays only.")
+            elif status == "cancelled" or not delay_hours:
+                why = ("This booking was cancelled rather than delayed, so the delay "
+                       "compensation rule does not apply. The cancellation entitles "
+                       "the customer to free rebooking or a full refund instead.")
+            else:
+                why = ("Hotel accommodation applies only when a delay exceeds {} "
+                       "hours; this delay is {}h.".format(DELAY_HOTEL_HOURS, delay_hours))
+            return _verdict("hotel", "decline", rule="delay_compensation", reason=why)
         if full_night:
             if req.get("insisting"):
                 return _verdict("hotel", "escalate", rule="prohibited_compensation",

@@ -25,6 +25,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from . import config  # noqa: F401  -- loads .env before anything reads os.getenv
 from .agent import run_turn
 from .data import loader
 from .llm.provider import get_provider

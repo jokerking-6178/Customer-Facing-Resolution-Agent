@@ -7,16 +7,19 @@ import ActionRecord from "./components/ActionRecord.jsx";
 
 const PRESETS = [
   {
+    customerId: "priya_nair",
     label: "Scenario 1 · Priya",
     message:
       "My flight SK-204 got cancelled and I am furious! I want a full cash refund and a free upgrade to business class on my return flight for the trouble.",
   },
   {
+    customerId: "arvind_kulkarni",
     label: "Scenario 2 · Arvind",
     message:
       "This delay ruined my whole day — my flight SK-118 is delayed 4 hours and I missed my connecting meeting. I want hotel accommodation since it's been such a long delay.",
   },
   {
+    customerId: "meher_kaur",
     label: "Scenario 3 · Meher",
     message:
       "My flight SK-305 is delayed 6 hours. I want a full night's hotel stay rather than coverage for just the delayed hours, and I want to be moved onto a different, higher-fare flight instead of waiting — the fare difference for that flight is ₹2,000.",
@@ -42,7 +45,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll the chat pane itself. scrollIntoView() also scrolls every
+    // scrollable ancestor including the document, which dragged the header
+    // and sentiment chip off the top of the screen on every token.
+    const el = bottomRef.current?.parentElement;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   function switchCustomer(id) {
@@ -138,7 +145,7 @@ export default function App() {
         <>
           <div className="presets">
             <span className="presets__label">Demo script:</span>
-            {PRESETS.map((p) => (
+            {PRESETS.filter((p) => p.customerId === customerId).map((p) => (
               <button
                 key={p.label}
                 className="preset"

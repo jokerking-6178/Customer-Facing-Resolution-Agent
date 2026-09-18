@@ -17,6 +17,8 @@ from typing import Any, Callable
 
 import httpx
 
+from .. import config  # noqa: F401  -- ensures .env is loaded
+
 PROVIDERS = {
     "ollama": {
         "base_url": "http://localhost:11434/v1",
@@ -26,7 +28,10 @@ PROVIDERS = {
     },
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
-        "model": "llama-3.3-70b-versatile",
+        # Groq retires hosted models periodically -- llama-3.3-70b-versatile
+        # was decommissioned and now 404s. Override with LLM_MODEL, and run
+        # `python -m backend.llm.provider` to list what your key can reach.
+        "model": "openai/gpt-oss-120b",
         "api_key_env": "GROQ_API_KEY",
         "api_key_default": None,
     },
@@ -258,3 +263,32 @@ class MockProvider:
             first = False
         reply = " ".join(lines).strip()
         return reply or "I'm here to help with your booking."
+
+
+if __name__ == "__main__":  # pragma: no cover
+    # Diagnostic: `python -m backend.llm.provider`
+    # Shows the resolved provider and, for a hosted provider, which models the
+    # configured key can actually reach. Groq retires models periodically, so a
+    # 404 on chat usually means the configured LLM_MODEL no longer exists.
+    import sys
+
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    p = get_provider()
+    print("provider :", p.name)
+    print("model    :", getattr(p, "model", "-"))
+    print("base_url :", getattr(p, "base_url", "-"))
+    if isinstance(p, MockProvider):
+        print("\n(mock provider: no network, no models to list)")
+        raise SystemExit(0)
+    try:
+        r = httpx.get(p.base_url + "/models", headers=p._headers(), timeout=30)
+        r.raise_for_status()
+        ids = sorted(m["id"] for m in r.json().get("data", []))
+        print("\nModels reachable with this key ({}):".format(len(ids)))
+        for i in ids:
+            print("   ", i, " <-- configured" if i == p.model else "")
+        if p.model not in ids:
+            print("\n!! Configured model {!r} is NOT in the list above.".format(p.model))
+            print("   Set LLM_MODEL in .env to one of them.")
+    except Exception as e:
+        print("\nCould not list models: {}: {}".format(type(e).__name__, str(e)[:200]))
