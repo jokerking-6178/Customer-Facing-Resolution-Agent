@@ -118,8 +118,14 @@ Also try: a legal threat (immediate escalation, Sample C style, raised as a **hi
 ticket**), asking for a refund to a different card (prohibited → escalate), and a bare "my
 flight got cancelled" (the agent asks **one** question, and stops asking after two).
 
-The right-hand panel shows the append-only action record — every executed, declined, escalated,
-and clarified action with the rule that authorized it, plus the escalation ticket reference.
+The interface is a three-pane desk: customers and demo scenarios on the left, the conversation
+in the middle, and the append-only action record on the right — every executed, declined,
+escalated and clarified action with the rule that authorized it, filterable by status, plus the
+escalation ticket reference. The header carries the live sentiment chip, the detected intent, the
+active engine, and a light/dark/auto theme switch (remembered per browser).
+
+Each preset is bound to its customer, so clicking a scenario selects that customer and starts a
+clean session — a scenario can never be answered against the wrong person's booking.
 
 ### Audit trail
 
@@ -137,7 +143,7 @@ facts, the rules checked, the reason, and a priority — the packet a human agen
 
 | Layer | Choice |
 |-------|--------|
-| Frontend | React 18 (JSX), esbuild build, Vite dev server |
+| Frontend | React 18 (JSX), esbuild build, Vite dev server; three-pane desk with light/dark switch |
 | API | FastAPI, SSE streaming |
 | Agent | LangGraph state machine (8 nodes; every reply routed through the authority gate) |
 | Decisions | Pure-Python policy engine (6 rules + authority gate) |

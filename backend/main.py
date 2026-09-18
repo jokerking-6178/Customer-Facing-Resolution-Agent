@@ -63,13 +63,30 @@ def healthz():
 
 @app.get("/api/customers")
 def customers():
+    """The three profiles for the picker, each with its disrupted booking.
+
+    The sidebar shows the flight and what went wrong, so the reviewer can see
+    at a glance which scenario each customer represents.
+    """
     out = []
     for c in loader.get_customers():
+        booking = loader.get_disrupted_booking(c["id"]) or {}
+        disruption = booking.get("disruption") or {}
+        status = booking.get("status")
+        if disruption.get("type") == "delay" and disruption.get("delay_hours"):
+            summary = "delayed {}h".format(disruption["delay_hours"])
+        elif status == "cancelled":
+            summary = "cancelled"
+        else:
+            summary = status or ""
         out.append({
             "id": c["id"],
             "name": c["name"],
             "loyalty_tier": c["loyalty_tier"],
             "booking_reference": c["booking_reference"],
+            "flight": booking.get("flight"),
+            "route_display": booking.get("route_display"),
+            "status_summary": summary,
         })
     return out
 
