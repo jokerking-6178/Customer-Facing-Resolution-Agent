@@ -1,0 +1,145 @@
+{
+  "exercise_date": "2026-09-23",
+  "note": "This pack contains ONLY material supplied in the Assignment 3 data pack. The exercise is set on Wednesday 23 September 2026. PNR discrepancy (TR1190B vs TR11390B in the scenario text) normalized to TR1190B. No flight schedule or fare data was supplied, so none is modelled here: the agent never names a specific replacement flight, and any fare difference is whatever the customer states, recorded as unverified.",
+  "customers": [
+    {
+      "id": "priya_nair",
+      "name": "Priya Nair",
+      "loyalty_tier": "Gold",
+      "booking_reference": "SK4821X",
+      "contact": {
+        "email": "priya.nair@example.com",
+        "phone": "+91-98xxxxxxxx1"
+      },
+      "travel_history_12m": {
+        "flights": 6,
+        "prior_complaints": [
+          {
+            "issue": "delayed baggage",
+            "resolution": "resolved with voucher"
+          }
+        ]
+      }
+    },
+    {
+      "id": "arvind_kulkarni",
+      "name": "Arvind Kulkarni",
+      "loyalty_tier": "Silver",
+      "booking_reference": "TR1190B",
+      "contact": {
+        "email": "arvind.kulkarni@example.com",
+        "phone": "+91-98xxxxxxxx2"
+      },
+      "travel_history_12m": {
+        "flights": 3,
+        "prior_complaints": []
+      }
+    },
+    {
+      "id": "meher_kaur",
+      "name": "Meher Kaur",
+      "loyalty_tier": "Platinum",
+      "booking_reference": "WL7742",
+      "contact": {
+        "email": "meher.kaur@example.com",
+        "phone": "+91-98xxxxxxxx3"
+      },
+      "travel_history_12m": {
+        "flights": 10,
+        "prior_complaints": [
+          {
+            "issue": "overbooking",
+            "resolution": "resolved with tier-status upgrade"
+          }
+        ]
+      }
+    }
+  ],
+  "bookings": [
+    {
+      "pnr": "SK4821X",
+      "customer_id": "priya_nair",
+      "flight": "SK-204",
+      "route": "DEL-GOI",
+      "route_display": "Delhi to Goa",
+      "date": "2026-09-23",
+      "scheduled_departure": "18:40",
+      "status": "cancelled",
+      "disruption": {
+        "type": "cancellation",
+        "caused_by": "airline",
+        "reason": "operational reasons",
+        "delay_hours": null,
+        "new_departure": null
+      }
+    },
+    {
+      "pnr": "SK4821X",
+      "customer_id": "priya_nair",
+      "flight": "SK-204R",
+      "route": "GOI-DEL",
+      "route_display": "Goa to Delhi (return)",
+      "date": "2026-09-25",
+      "scheduled_departure": "16:20",
+      "status": "unaffected",
+      "disruption": null
+    },
+    {
+      "pnr": "TR1190B",
+      "customer_id": "arvind_kulkarni",
+      "flight": "SK-118",
+      "route": "BOM-BLR",
+      "route_display": "Mumbai to Bengaluru",
+      "date": "2026-09-23",
+      "scheduled_departure": "07:10",
+      "status": "delayed",
+      "disruption": {
+        "type": "delay",
+        "caused_by": "airline",
+        "reason": "operational delay",
+        "delay_hours": 4,
+        "new_departure": "11:10"
+      }
+    },
+    {
+      "pnr": "WL7742",
+      "customer_id": "meher_kaur",
+      "flight": "SK-305",
+      "route": "DEL-HYD",
+      "route_display": "Delhi to Hyderabad",
+      "date": "2026-09-23",
+      "scheduled_departure": "14:00",
+      "status": "delayed",
+      "disruption": {
+        "type": "delay",
+        "caused_by": "airline",
+        "reason": "operational delay",
+        "delay_hours": 6,
+        "new_departure": "20:00"
+      }
+    }
+  ],
+  "rules_text": {
+    "service_rules": [
+      "Cancellation Rebooking Rule: If a flight is cancelled by the airline, the customer is entitled to a free rebooking on the next available flight within 24 hours, or a full refund, customer's choice.",
+      "Delay Compensation Rule: Delay under 3 hours: Rs 500 meal voucher. Delay more than 3 hours: meal voucher + lounge access. Delay more than 5 hours: meal voucher + hotel accommodation, covering only the delayed hours (not a full night's stay).",
+      "Refund Processing Rule: Refunds for airline-caused cancellations are processed in full within 7 business days. Refunds are issued to the original payment method only.",
+      "Fare Difference Rule: If a customer voluntarily chooses to rebook on a higher-fare flight (not airline-caused), they must pay the fare difference. Agents cannot waive fare differences above Rs 1,500 without supervisor approval.",
+      "Loyalty Tier Rule: Gold and Platinum tier customers get priority rebooking (first access to next-available seats) but no additional compensation beyond the standard policy."
+    ],
+    "allowed_actions": [
+      "Rebook the customer on the next available flight within 24 hours at no charge (airline-caused disruption)",
+      "Issue meal vouchers and lounge access per the delay compensation rule",
+      "Arrange hotel accommodation for the delayed-hours portion, where the delay qualifies",
+      "Initiate a refund request for airline-caused cancellations",
+      "Provide the customer's own booking and flight status information"
+    ],
+    "prohibited_actions": [
+      "Approving any compensation beyond the stated policy amounts",
+      "Waiving a fare difference above Rs 1,500",
+      "Making exceptions for non-airline-caused disruptions (e.g., customer missed the flight)",
+      "Handling threats of legal action or formal complaints - must be escalated immediately",
+      "Processing refunds to a different payment method than the original"
+    ]
+  }
+}

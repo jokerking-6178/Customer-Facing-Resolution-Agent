@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: skyassist
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      - key: LLM_PROVIDER
+        value: groq
+      - key: GROQ_API_KEY
+        sync: false   # set in the Render dashboard
+      - key: DB_PATH
+        value: /var/data/skyassist.db
+    disk:
+      # Without a disk the SQLite ledger -- the entire audit trail -- is wiped
+      # on every redeploy and restart.
+      name: skyassist-data
+      mountPath: /var/data
+      sizeGB: 1
