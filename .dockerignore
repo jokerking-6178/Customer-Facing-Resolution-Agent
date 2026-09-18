@@ -1,0 +1,36 @@
+# Keep the build context small, and make it impossible to bake a local secret
+# or a local database into the image.
+
+# secrets / local state
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite3
+
+# python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# node — the image builds the frontend from source in stage 1
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# vcs / tooling / docs
+.git/
+.gitignore
+.github/
+.vscode/
+.idea/
+.claude/
+*.md
+!README.md
+
+# os
+.DS_Store
+Thumbs.db

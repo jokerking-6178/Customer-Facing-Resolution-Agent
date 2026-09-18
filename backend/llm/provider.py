@@ -38,10 +38,59 @@ PROVIDERS = {
 }
 
 
+class ProviderError(Exception):
+    """A language-model failure, already phrased for a customer to read.
+
+    The raw cause (status codes, URLs, keys, stack traces) stays in the server
+    log; only `message` is ever shown in the browser.
+    """
+
+    def __init__(self, message: str, cause: Exception | None = None):
+        super().__init__(message)
+        self.message = message
+        self.cause = cause
+
+
+def _friendly(exc: Exception) -> ProviderError:
+    """Map a transport/HTTP failure onto something a customer can act on."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        code = exc.response.status_code
+        if code in (401, 403):
+            return ProviderError(
+                "The assistant isn't configured correctly on our side, so I can't "
+                "reply right now. Please contact support.", exc)
+        if code == 404:
+            return ProviderError(
+                "The assistant is unavailable right now (its language model is no "
+                "longer reachable). Please try again later.", exc)
+        if code == 429:
+            return ProviderError(
+                "We're handling a lot of requests at the moment. Please wait a few "
+                "seconds and send that again.", exc)
+        if code >= 500:
+            return ProviderError(
+                "The assistant is temporarily unavailable. Please try again in a "
+                "moment.", exc)
+        return ProviderError(
+            "The assistant couldn't complete that request. Please try again.", exc)
+    if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout)):
+        return ProviderError(
+            "I can't reach the assistant right now. Please try again in a moment.", exc)
+    if isinstance(exc, (httpx.ReadTimeout, httpx.TimeoutException)):
+        return ProviderError(
+            "That took too long to answer. Please try again.", exc)
+    return ProviderError(
+        "Something went wrong while preparing the reply. Please try again.", exc)
+
+
 def get_provider():
     name = os.getenv("LLM_PROVIDER", "ollama").lower()
     if name == "mock":
         return MockProvider()
+    if name not in PROVIDERS:
+        raise ProviderError(
+            "The assistant isn't configured correctly on our side "
+            "(unknown provider {!r}).".format(name))
     return OpenAICompatProvider(name)
 
 
@@ -75,7 +124,11 @@ class OpenAICompatProvider:
                 system + "\nRespond with a single valid JSON object and nothing else.",
                 user,
             )
-        raise ValueError(f"Provider {self.name} did not return JSON: {text[:200]}")
+        # Never surface raw model output to the browser; log it instead.
+        print("[llm] {} returned unparseable JSON: {!r}".format(self.name, text[:300]))
+        raise ProviderError(
+            "I couldn't understand that request well enough to act on it. "
+            "Could you rephrase it?")
 
     def chat_text(self, system: str, user: str, on_chunk: Callable[[str], None] | None = None) -> str:
         """Streaming chat; optionally emits tokens through on_chunk."""
@@ -92,28 +145,38 @@ class OpenAICompatProvider:
             "stream": on_chunk is not None,
         }
         if not on_chunk:
-            resp = httpx.post(f"{self.base_url}/chat/completions",
-                              headers=self._headers(), json=body, timeout=120.0)
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
+            try:
+                resp = httpx.post(f"{self.base_url}/chat/completions",
+                                  headers=self._headers(), json=body, timeout=120.0)
+                resp.raise_for_status()
+                return resp.json()["choices"][0]["message"]["content"]
+            except (httpx.HTTPError, KeyError, IndexError, ValueError) as e:
+                raise _friendly(e) from e
 
         parts: list[str] = []
-        with httpx.stream("POST", f"{self.base_url}/chat/completions",
-                          headers=self._headers(), json=body, timeout=180.0) as resp:
-            resp.raise_for_status()
-            for line in resp.iter_lines():
-                if not line.startswith("data: "):
-                    continue
-                data = line[len("data: "):].strip()
-                if data == "[DONE]":
-                    break
-                try:
-                    delta = json.loads(data)["choices"][0]["delta"].get("content", "")
-                except (json.JSONDecodeError, KeyError, IndexError):
-                    continue
-                if delta:
-                    parts.append(delta)
-                    on_chunk(delta)
+        try:
+            with httpx.stream("POST", f"{self.base_url}/chat/completions",
+                              headers=self._headers(), json=body, timeout=180.0) as resp:
+                # Read the body before raising: a streaming error response is
+                # otherwise unreadable, which loses the real cause in the log.
+                if resp.status_code >= 400:
+                    resp.read()
+                resp.raise_for_status()
+                for line in resp.iter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data = line[len("data: "):].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        delta = json.loads(data)["choices"][0]["delta"].get("content", "")
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        continue
+                    if delta:
+                        parts.append(delta)
+                        on_chunk(delta)
+        except httpx.HTTPError as e:
+            raise _friendly(e) from e
         return "".join(parts)
 
 

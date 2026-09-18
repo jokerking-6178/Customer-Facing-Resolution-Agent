@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import queue as thread_queue
+import traceback
 import threading
 from pathlib import Path
 from typing import Optional
@@ -28,7 +29,7 @@ from pydantic import BaseModel
 from . import config  # noqa: F401  -- loads .env before anything reads os.getenv
 from .agent import run_turn
 from .data import loader
-from .llm.provider import get_provider
+from .llm.provider import ProviderError, get_provider
 from .records.ledger import Ledger
 
 DB_PATH = os.getenv("DB_PATH", str(Path(__file__).resolve().parent / "data" / "skyassist.db"))
@@ -53,10 +54,17 @@ class ChatBody(BaseModel):
 
 @app.get("/healthz")
 def healthz():
-    provider = get_provider()
+    """Liveness probe. Reports the configured engine without calling it."""
+    try:
+        provider = get_provider()
+        name = getattr(provider, "name", "unknown")
+        model = getattr(provider, "model", "built-in")
+    except ProviderError as e:
+        name, model = "misconfigured", e.message
     return {
         "status": "ok",
-        "llm_provider": getattr(provider, "name", "unknown"),
+        "llm_provider": name,
+        "llm_model": model,
         "exercise_date": loader.load_datapack()["exercise_date"],
     }
 
@@ -107,8 +115,16 @@ def chat(body: ChatBody):
             try:
                 run_turn(session_id, body.customer_id, body.message,
                          ledger=_ledger, queue=q)
+            except ProviderError as e:
+                # Already phrased for a customer. Log the real cause.
+                traceback.print_exception(e.cause or e)
+                q.put(("error", {"detail": e.message}))
             except Exception as e:  # keep the stream alive even on failure
-                q.put(("error", {"detail": str(e)}))
+                # Never leak an exception string to the browser: it can carry
+                # URLs, model names and internal paths.
+                traceback.print_exception(e)
+                q.put(("error", {"detail": "Something went wrong on our side "
+                                           "handling that message. Please try again."}))
             finally:
                 q.put(None)
 

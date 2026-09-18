@@ -11,12 +11,13 @@ services:
       - key: LLM_PROVIDER
         value: groq
       - key: GROQ_API_KEY
-        sync: false   # set in the Render dashboard
+        sync: false   # set in the Render dashboard; never committed
+      # Render's free instances cannot attach a persistent disk, so the SQLite
+      # ledger lives on ephemeral container storage. It fills up normally while
+      # someone is using the app and resets when the instance restarts (which a
+      # free service does after ~15 minutes of inactivity). The /tmp path is
+      # chosen to make that impermanence obvious rather than surprising.
+      # To keep the audit trail across restarts, move to a paid instance and
+      # add a disk mounted at /var/data, then set DB_PATH=/var/data/skyassist.db.
       - key: DB_PATH
-        value: /var/data/skyassist.db
-    disk:
-      # Without a disk the SQLite ledger -- the entire audit trail -- is wiped
-      # on every redeploy and restart.
-      name: skyassist-data
-      mountPath: /var/data
-      sizeGB: 1
+        value: /tmp/skyassist.db
